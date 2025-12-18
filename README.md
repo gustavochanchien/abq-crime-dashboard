@@ -33,7 +33,7 @@ A client-side, map-driven dashboard for exploring Albuquerque 911 incident histo
   * Average incidents by day-of-week and by hour-of-day with mini-filters.
   * KPIs: total incidents, date range, top call type, peak period, active filters. 
 
-* **Region filtering**
+* **Region selection filtering**
 
   * Optional polygon drawing via Leaflet.draw; map, charts, and KPIs re-compute on region changes. 
 
@@ -75,8 +75,6 @@ The dashboard is a **single-page, static web app**:
   * “TrendsController”: owns legend, charts, KPI cards, and DOW/hour filter state.
   * Built on Chart.js and plain DOM updates.
   * Notifies the app when filters change so the pipeline can re-run. 
-
-Everything runs in the browser — there is **no backend server** beyond the upstream public APIs.
 
 ---
 

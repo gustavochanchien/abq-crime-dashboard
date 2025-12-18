@@ -157,6 +157,7 @@ export function createTrendsController({
   // Build legend UI for category mode based on points currently in view.
   // We compute top categories by count (default top 10) and bucket the rest into 'Other'.
   function renderLegendCategoryMode(pointsInSlice) {
+    const total = pointsInSlice.length;
     const counts = countBy(pointsInSlice, (p) => p.category);
     const top = new Set(topNFromCounts(counts, 10));
     topCategorySet = top;
@@ -197,7 +198,8 @@ export function createTrendsController({
 
       const text = document.createElement("span");
       const c = countsForLegend.get(cat) || 0;
-      text.textContent = `${cat} (${c.toLocaleString()})`;
+      const percent = total > 0 ? ((c / total) * 100).toFixed(1) : 0;
+      text.textContent = `${cat} (${c.toLocaleString()}) ${percent}%`;
 
       row.appendChild(cb);
       row.appendChild(dot);
@@ -237,6 +239,7 @@ export function createTrendsController({
   // Build legend UI for all-types mode.
   // Types are grouped under their category header and can be toggled individually.
   function renderLegendAllTypesMode(pointsInSlice) {
+    const total = pointsInSlice.length;
     const countsByType = countBy(pointsInSlice, (p) => p.type);
     visibleTypes = Array.from(countsByType.keys()).sort(
       (a, b) => (countsByType.get(b) || 0) - (countsByType.get(a) || 0)
@@ -282,7 +285,9 @@ export function createTrendsController({
       dot.style.background = colorForCategory(cat);
 
       const headerText = document.createElement("span");
-      headerText.textContent = `${cat} (${(catTotals.get(cat) || 0).toLocaleString()})`;
+      const catTotal = catTotals.get(cat) || 0;
+      const catPercent = total > 0 ? ((catTotal / total) * 100).toFixed(1) : 0;
+      headerText.textContent = `${cat} (${catTotal.toLocaleString()}) ${catPercent}%`;
 
       header.appendChild(catCb);
       header.appendChild(dot);
@@ -340,7 +345,8 @@ export function createTrendsController({
         tdot.style.background = shadeForType(item.type, cat);
 
         const text = document.createElement("span");
-        text.textContent = `${item.type} (${item.count.toLocaleString()})`;
+        const typePercent = total > 0 ? ((item.count / total) * 100).toFixed(1) : 0;
+        text.textContent = `${item.type} (${item.count.toLocaleString()}) ${typePercent}%`;
 
         row.appendChild(cb);
         row.appendChild(tdot);

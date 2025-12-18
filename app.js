@@ -392,32 +392,64 @@ window.addEventListener("DOMContentLoaded", () => {
     return CATEGORY_COLORS[cat] || CATEGORY_COLORS["Other"];
   }
 
-// --- Bootstrap Icons (canvas sprites) ---
-  const BI_FONT_FAMILY = "bootstrap-icons";
-  const ICON_SPRITE_PX = 20;
-  const ICON_GLYPH_PX = 12;
+  // --- Bootstrap Icons (canvas sprites) ---
+    const BI_FONT_FAMILY = "bootstrap-icons";
+    const ICON_SPRITE_PX = 20;
+    const ICON_GLYPH_PX = 12;
 
-const CATEGORY_STYLE = {
-  "Violent Crime":              { iconClass: "bi-shield-fill-exclamation", glyph: "\uF848" },
-  "Property Crime":             { iconClass: "bi-house-lock",             glyph: "\uF7D6" },
-  "Suspicious & Investigation": { iconClass: "bi-eye",                    glyph: "\uF33E" },
-  "Disorder / Nuisance":        { iconClass: "bi-megaphone",              glyph: "\uF478" },
-  "Traffic & Road Safety":      { iconClass: "bi-car-front",              glyph: "\uF7E1" },
-  "Medical & Welfare":          { iconClass: "bi-heart-pulse",            glyph: "\uF76F" },
-  "Fire & Life Safety":         { iconClass: "bi-fire",                   glyph: "\uF391" },
-  "Alarms & Security":          { iconClass: "bi-bell",                   glyph: "\uF18A" },
-  "Missing / Wanted":           { iconClass: "bi-search",                 glyph: "\uF52A" },
-  "Admin / Officer Activity":   { iconClass: "bi-clipboard-check",        glyph: "\uF26E" },
-  "Animal":                     { iconClass: "bi-bug",                    glyph: "\uF1D0" },
-  "Other":                      { iconClass: "bi-question-circle",        glyph: "\uF505" },
-};
+  const CATEGORY_STYLE = {
+    "Violent Crime":              { iconClass: "bi-shield-fill-exclamation" },
+    "Property Crime":             { iconClass: "bi-house-lock" },
+    "Suspicious & Investigation": { iconClass: "bi-eye" },
+    "Disorder / Nuisance":        { iconClass: "bi-megaphone" },
+    "Traffic & Road Safety":      { iconClass: "bi-car-front" },
+    "Medical & Welfare":          { iconClass: "bi-heart-pulse" },
+    "Fire & Life Safety":         { iconClass: "bi-fire" },
+    "Alarms & Security":          { iconClass: "bi-bell" },
+    "Missing / Wanted":           { iconClass: "bi-search" },
+    "Admin / Officer Activity":   { iconClass: "bi-clipboard-check" },
+    "Animal":                     { iconClass: "bi-bug" },
+    "Other":                      { iconClass: "bi-question-circle" },
+  };
+
 
   function iconClassForCategory(cat) {
     return (CATEGORY_STYLE[cat] || CATEGORY_STYLE.Other).iconClass;
   }
-  function iconGlyphForCategory(cat) {
-    return (CATEGORY_STYLE[cat] || CATEGORY_STYLE.Other).glyph;
+
+  function glyphFromBootstrapClass(iconClass) {
+    const el = document.createElement("i");
+    el.className = `bi ${iconClass}`;
+    el.style.position = "absolute";
+    el.style.left = "-9999px";
+    el.style.top = "-9999px";
+    document.body.appendChild(el);
+
+    const content = getComputedStyle(el, "::before").getPropertyValue("content");
+    document.body.removeChild(el);
+
+    if (!content || content === "none") return "�";
+
+    const unquoted = content.replace(/^["']|["']$/g, "");
+
+    // If it's already a single character, use it directly.
+    if (unquoted.length === 1) return unquoted;
+
+    // Otherwise, parse the escaped form \fXXX or \fXXXX
+    const m = unquoted.match(/\\f([0-9a-fA-F]{3,4})/);
+    if (m) return String.fromCodePoint(parseInt(m[1], 16));
+
+    return "�";
   }
+
+  function iconGlyphForCategory(cat) {
+    const iconClass = iconClassForCategory(cat);
+    return glyphFromBootstrapClass(iconClass);
+  }
+
+
+
+
 
   // font readiness
   let iconFontReady = false;
@@ -449,7 +481,7 @@ const CATEGORY_STYLE = {
     ctx.fill();
 
     ctx.fillStyle = "#fff";
-    ctx.font = `900 ${ICON_GLYPH_PX}px ${BI_FONT_FAMILY}`;
+    ctx.font = `${ICON_GLYPH_PX}px ${BI_FONT_FAMILY}`;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.fillText(glyph, ICON_SPRITE_PX / 2, ICON_SPRITE_PX / 2 + 0.5);
