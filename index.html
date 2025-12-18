@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>ABQ Incidents Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <!-- Leaflet + plugins -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="https://unpkg.com/nouislider@15.7.0/dist/nouislider.min.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+
+  <!-- Chart -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+
+<body>
+  <div id="status-bar">Initializing…</div>
+
+  <div id="app">
+    <header class="main-header">
+      <h1>Albuquerque Incident Dashboard</h1>
+      <p class="subtitle">CABQ Open Data 911 Calls History</p>
+    </header>
+
+    <!-- Map + Filters -->
+    <div id="top-card" class="card">
+      <div class="card-title">
+        <span>Map</span>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;">
+          <button id="mode-heat" class="btn" type="button">Heat</button>
+          <button id="mode-zip" class="btn" type="button">ZIP Codes</button>
+          <button id="mode-dots" class="btn btn-on" type="button">Dots</button>
+        </div>
+      </div>
+
+      <div id="map-and-filters">
+        <div id="map-wrap">
+          <div id="map"></div>
+
+          <div class="map-actions">
+            <span class="tip-wrap">
+              <!-- <button id="draw-region-btn" class="btn" type="button">Draw region</button> -->
+             <button id="clear-region-btn" class="btn" type="button">Clear region</button>
+              <span class="tip">Clear drawn regions on the map.</span>
+            </span>
+
+            <span style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+              <span class="chip" id="loaded-range-chip">Loaded: —</span>
+              
+            </span>
+          </div>
+        </div>
+
+        <!-- Filters panel -->
+        <div id="filters-wrap">
+          <div id="controls">
+            <div id="controls-header">
+              <span id="controls-title">Filters</span>
+
+              <div id="controls-actions">
+                <label style="display:flex;align-items:center;gap:6px;">
+                  <input id="show-all-types" type="checkbox" style="width:14px;height:14px;">
+                  <span style="font-size:11px;font-weight:800;color:var(--muted);">Show all call types</span>
+                </label>
+
+                <button id="select-all-types" type="button" class="btn">Reset selection</button>
+              </div>
+            </div>
+
+            <div id="controls-body">
+              <div id="slider-panel">
+                <div id="date-label">Loading…</div>
+                <div id="slider"></div>
+
+                <!-- Heat-only opacity control -->
+                <div id="heat-opacity-panel" style="display:none;">
+                  <div class="heat-row">
+                    <span class="heat-label">Heat opacity</span>
+                    <input id="heat-opacity" type="range" min="10" max="100" value="75" />
+                    <span class="chip" id="heat-opacity-val">75%</span>
+                  </div>
+                </div>
+              </div>
+
+              <div id="legend-panel">
+                <div class="legend-header">
+                  <h4>Call type legend</h4>
+                  <span class="legend-hint">Top 10 categories (+ Other)</span>
+                </div>
+                <div id="legend-items"></div>
+              </div>
+
+              <div id="source-line">
+                Source:
+                <a href="https://coageo.cabq.gov/cabqgeo/rest/services/Incidents/MapServer/0"
+                   target="_blank" rel="noopener">
+                  City of Albuquerque (CABQ) Open Data
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="map-overlay"></div>
+
+    <!-- Trend summaries -->
+    <div id="summary-card" class="card">
+      <div class="card-title">
+        <span>Incident trend summaries</span>
+      </div>
+
+      <div id="kpis">
+        <div class="kpi">
+          <div class="label">Incidents</div>
+          <div class="value" id="kpi-total">—</div>
+          <div class="sub" id="kpi-range">—</div>
+        </div>
+        <div class="kpi">
+          <div class="label">Top call type</div>
+          <div class="value" id="kpi-toptype">—</div>
+          <div class="sub" id="kpi-toptype-sub">—</div>
+        </div>
+        <div class="kpi">
+          <div class="label">Peak period</div>
+          <div class="value" id="kpi-peakday">—</div>
+          <div class="sub" id="kpi-peakday-sub">—</div>
+        </div>
+        <div class="kpi">
+          <div class="label">Active filters</div>
+          <div class="value" id="kpi-filters">—</div>
+          <div class="sub" id="kpi-filters-sub">—</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Charts row -->
+    <div id="charts-row">
+      <div id="trend-card" class="card">
+        <div class="card-title">
+          <span class="tip-wrap">
+            <span>Incident trends</span>
+            <span class="tip-icon">?</span>
+            <span class="tip">API data only goes back 6 months and is delayed 6 days</span>
+          </span>
+
+          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end;">
+            <label class="tip-wrap" style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted);font-weight:750;">
+              <span>Group by</span>
+              <select id="chart-grouping"
+                      style="font-size:11px;padding:7px 10px;border:1px solid var(--border);border-radius:12px;background:#fff;color:var(--ink);font-weight:750;">
+                <option value="day" selected>Day</option>
+                <option value="week">Week</option>
+                <option value="month">Month</option>
+              </select>
+            </label>
+
+            <label class="tip-wrap" style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted);font-weight:750;">
+              <input id="chart-aggregate" type="checkbox" style="width:14px;height:14px;" checked>
+              <span>Aggregate</span>
+            </label>
+          </div>
+        </div>
+
+        <div id="timeline-chart-container">
+          <canvas id="timeline-chart"></canvas>
+        </div>
+      </div>
+
+      <div class="mini-card">
+        <div class="mini-title">
+          <span>Average by day of week</span>
+          <div class="mini-actions">
+            <span class="chip" id="dow-filter-chip">Filter: none</span>
+            <button id="dow-clear" class="btn" type="button">Clear</button>
+          </div>
+        </div>
+        <div class="chart-box">
+          <canvas id="dow-chart"></canvas>
+        </div>
+      </div>
+
+      <div class="mini-card">
+        <div class="mini-title">
+          <span>Average by hour</span>
+          <div class="mini-actions">
+            <span class="chip" id="hour-filter-chip">Filter: none</span>
+            <button id="hour-clear" class="btn" type="button">Clear</button>
+          </div>
+        </div>
+        <div class="chart-box">
+          <canvas id="hour-chart"></canvas>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Leaflet + helpers -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+<script src="https://unpkg.com/nouislider@15.7.0/dist/nouislider.min.js"></script>
+<script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
+
+<script type="module" src="./app.js"></script>
+</body>
+</html>
