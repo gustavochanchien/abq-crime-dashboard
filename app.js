@@ -398,20 +398,19 @@ window.addEventListener("DOMContentLoaded", () => {
   const ICON_GLYPH_PX = 12;
 
 const CATEGORY_STYLE = {
-  "Violent Crime":              { iconClass: "bi-shield-fill-exclamation", glyph: "\uF52C" },
-  "Property Crime":             { iconClass: "bi-house-lock",             glyph: "\uF3B7" },
-  "Suspicious & Investigation": { iconClass: "bi-eye",                    glyph: "\uF341" },
-  "Disorder / Nuisance":        { iconClass: "bi-megaphone",              glyph: "\uF484" },
+  "Violent Crime":              { iconClass: "bi-shield-fill-exclamation", glyph: "\uF848" },
+  "Property Crime":             { iconClass: "bi-house-lock",             glyph: "\uF7D6" },
+  "Suspicious & Investigation": { iconClass: "bi-eye",                    glyph: "\uF33E" },
+  "Disorder / Nuisance":        { iconClass: "bi-megaphone",              glyph: "\uF478" },
   "Traffic & Road Safety":      { iconClass: "bi-car-front",              glyph: "\uF7E1" },
   "Medical & Welfare":          { iconClass: "bi-heart-pulse",            glyph: "\uF76F" },
-  "Fire & Life Safety":         { iconClass: "bi-fire",                   glyph: "\uF7F6" },
+  "Fire & Life Safety":         { iconClass: "bi-fire",                   glyph: "\uF391" },
   "Alarms & Security":          { iconClass: "bi-bell",                   glyph: "\uF18A" },
-  "Missing / Wanted":           { iconClass: "bi-search",                 glyph: "\uF52A" }, // search
-  "Admin / Officer Activity":   { iconClass: "bi-clipboard-check",        glyph: "\uF28B" },
-  "Animal":                     { iconClass: "bi-bug",                    glyph: "\uF1DC" },
+  "Missing / Wanted":           { iconClass: "bi-search",                 glyph: "\uF52A" },
+  "Admin / Officer Activity":   { iconClass: "bi-clipboard-check",        glyph: "\uF26E" },
+  "Animal":                     { iconClass: "bi-bug",                    glyph: "\uF1D0" },
   "Other":                      { iconClass: "bi-question-circle",        glyph: "\uF505" },
 };
-
 
   function iconClassForCategory(cat) {
     return (CATEGORY_STYLE[cat] || CATEGORY_STYLE.Other).iconClass;
