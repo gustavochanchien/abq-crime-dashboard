@@ -34,7 +34,6 @@ export function createMapController({
   iconFontReadyRef,
   ensureIconFontReady,
   colorForCategory,
-  iconGlyphForCategory,
   spriteForCategory,
   shadeForType,
 }) {
@@ -70,6 +69,9 @@ export function createMapController({
   const HIT_PADDING_PX = 4;
   const GRID_CELL_PX = 64;
   const SIMPLE_DOTS_MAX_ZOOM = 12;
+  const ZOOM_IN_MIN = 14;
+  const ZOOM_MID_MIN = 12;
+  const SMALL_POINT_COUNT = 100;
 
 
   // Visual size heuristic for a clustered location-group.
@@ -272,6 +274,7 @@ export function createMapController({
       this._map = null;
       this._rawGroups = [];
       this._raf = null;
+      this._pointCount = 0;
     },
 
     onAdd(map) {
@@ -302,6 +305,12 @@ export function createMapController({
       if (isVisible) this._queueRedraw();
     },
 
+    setPointCount(n) {
+      this._pointCount = n || 0;
+      this._queueRedraw();
+    },
+
+
     _reset() {
       if (!this._map || !this._canvas) return;
       const size = this._map.getSize();
@@ -328,9 +337,19 @@ export function createMapController({
       ctx.clearRect(0, 0, this._canvas.width, this._canvas.height);
 
       const zoom = this._map.getZoom();
-      const simpleDots = zoom <= SIMPLE_DOTS_MAX_ZOOM;
       let groups = this._rawGroups;
-      const allowIcons = zoom >= 14 && groups.length < 20000;
+
+      const pointCount = this._pointCount || 0;
+      const isSmall = pointCount < SMALL_POINT_COUNT;
+
+      const isZoomedIn = zoom >= ZOOM_IN_MIN;
+      const isMidZoom = zoom >= ZOOM_MID_MIN && zoom < ZOOM_IN_MIN;
+      const isFarZoom = zoom < ZOOM_MID_MIN;
+
+      const pointsOnly = isFarZoom && !isSmall;
+
+      const allowIcons = (isZoomedIn || isSmall) && groups.length < 20000;
+
 
       // Icons are only drawn when we're zoomed in enough AND the number of groups is reasonable.
       // Drawing many sprites is more expensive than circles, so we gate it to protect FPS.
@@ -416,7 +435,7 @@ export function createMapController({
 
         const r = groupRadiusPx(total);
 
-        if (simpleDots) {
+        if (pointsOnly) {
             // Render as a small dot (no pies, no numbers, no icons)
             const fill = colorForCategory(g.category);
             ctx.beginPath();
@@ -754,29 +773,36 @@ export function createMapController({
     dotsCanvasLayer?.setVisible(true);
 
     const zoom = map?.getZoom?.() ?? 0;
+    const pointCount = filteredPoints?.length ?? 0;
+    dotsCanvasLayer?.setPointCount(pointCount);
     const simpleDots = zoom <= SIMPLE_DOTS_MAX_ZOOM;
 
-    const groups = simpleDots
-        ? filteredPoints.map((p) => ({
-            lat: p.lat,
-            lon: p.lon,
-            category: p.category,
-            total: 1,        // keep it “single”
-            // no breakdown, no events
+    const isSmall = pointCount < SMALL_POINT_COUNT;
+    const isFarZoom = zoom < ZOOM_MID_MIN;
+
+    const pointsOnly = isFarZoom && !isSmall;
+
+    const groups = pointsOnly
+      ? filteredPoints.map((p) => ({
+          lat: p.lat,
+          lon: p.lon,
+          category: p.category,
+          total: 1,
         }))
-        : buildDotGroups(filteredPoints);
+      : buildDotGroups(filteredPoints);
 
     dotsCanvasLayer?.setGroups(groups);
 
     // Only enable hit-testing + popups when NOT in simple-dots mode
-    if (!simpleDots) {
-        lastDotGroups = groups;
-        lastDotGroupsGrid = buildGroupsGrid(groups);
+    if (!pointsOnly) {
+      lastDotGroups = groups;
+      lastDotGroupsGrid = buildGroupsGrid(groups);
     } else {
-        lastDotGroups = [];
-        lastDotGroupsGrid = null;
+      lastDotGroups = [];
+      lastDotGroupsGrid = null;
     }
-    }
+
+  }
 
 
   // ------------------ Heat drawing ------------------
