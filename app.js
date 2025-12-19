@@ -374,17 +374,17 @@ window.addEventListener("DOMContentLoaded", () => {
   }
 
   const CATEGORY_COLORS = {
+    "Suspicious & Investigation": "#2a9d8f",
+    "Disorder / Nuisance": "#a855f7",
     "Violent Crime": "#dd1616",
     "Property Crime": "#f59e0b",
-    "Suspicious & Investigation": "#2e3d94",
-    "Disorder / Nuisance": "#a855f7",
     "Traffic & Road Safety": "#eab308",
     "Medical & Welfare": "#0ea5e9",
     "Fire & Life Safety": "#f97316",
     "Alarms & Security": "#14b8a6",
-    "Missing / Wanted": "#64748b",
+    "Missing / Wanted": "#2e3d94",
     "Admin / Officer Activity": "#6d5238",
-    "Animal": "#10b981",
+    "Animal": "#da0edd",
     "Other": "#94a3b8",
   };
 
@@ -398,7 +398,7 @@ window.addEventListener("DOMContentLoaded", () => {
     const ICON_GLYPH_PX = 12;
 
   const CATEGORY_STYLE = {
-    "Violent Crime":              { iconClass: "bi-shield-fill-exclamation" },
+    "Violent Crime":              { iconClass: "bi-shield-exclamation" },
     "Property Crime":             { iconClass: "bi-house-lock" },
     "Suspicious & Investigation": { iconClass: "bi-eye" },
     "Disorder / Nuisance":        { iconClass: "bi-megaphone" },

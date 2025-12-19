@@ -68,9 +68,9 @@ export function createMapController({
 
   const HIT_PADDING_PX = 4;
   const GRID_CELL_PX = 64;
-  const SIMPLE_DOTS_MAX_ZOOM = 12;
-  const ZOOM_IN_MIN = 14;
-  const ZOOM_MID_MIN = 12;
+  const SIMPLE_DOTS_MAX_ZOOM = 14;
+  const ZOOM_MID_MIN = 14;
+  const ZOOM_IN_MIN = 15;
   const SMALL_POINT_COUNT = 100;
 
 
