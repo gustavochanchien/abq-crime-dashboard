@@ -256,6 +256,15 @@ html, body {
   z-index: 4000;
 }
 
+.leaflet-interactive {
+  transition: fill 0.3s ease;
+}
+
+.zip-hover {
+  fill-opacity: 0.8 !important;
+  weight: 3 !important;
+}
+
 .map-expanded {
   position: fixed !important;
   inset: 22px !important;
@@ -524,6 +533,47 @@ html, body {
 @media (max-width:1050px){
   #map-and-filters{grid-template-columns:1fr;}
   #top-card #controls{max-height:none;}
+}
+
+/* target mobile devices */
+@media (max-width: 600px) {
+  .main-header h1 {
+    font-size: 22px; /* Shrink title */
+  }
+
+  #kpis {
+    grid-template-columns: 1fr 1fr; 
+    gap: 8px;
+  }
+
+  .kpi .value {
+    font-size: 15px; 
+  }
+
+  .color-dot {
+    width: 16px;
+    height: 16px;
+    font-size: 9px !important;
+  }
+
+  .legend-subitems {
+    grid-template-columns: 1fr;
+    margin-left: 10px;
+  }
+
+  .legend-item {
+    font-size: 11px;
+    white-space: normal;
+  }
+
+  #map {
+    height: 300px;
+  }
+
+  .btn {
+    padding: 10px 12px;
+    font-size: 10px;
+  }
 }
 
 

@@ -14,10 +14,8 @@ window.addEventListener("DOMContentLoaded", () => {
   const INCIDENTS_SERVICE_BASE =
     "https://coageo.cabq.gov/cabqgeo/rest/services/Incidents/MapServer/0";
 
-  const ZIP_QUERY_URL =
-    "https://pdsmaps.bernco.gov/server/rest/services/BERNCOCAD/ZIP_Codes/MapServer/194/query";
-
-  const INITIAL_DAYS = 30;        // initial fetch size (fast first render)
+  const ZIP_QUERY_URL = "./abq-zips.json";
+    const INITIAL_DAYS = 30;        // initial fetch size (fast first render)
   const DEFAULT_VIEW_DAYS = 30;   // default slider window shown to user
   const MAX_YEARS_BACK = 2;       // total history cap
   const BACKFILL_STEP_DAYS = 30;  // background chunk size
@@ -394,8 +392,14 @@ window.addEventListener("DOMContentLoaded", () => {
 
   // --- Bootstrap Icons (canvas sprites) ---
     const BI_FONT_FAMILY = "bootstrap-icons";
-    const ICON_SPRITE_PX = 20;
-    const ICON_GLYPH_PX = 12;
+    // const ICON_SPRITE_PX = 20;
+    // const ICON_GLYPH_PX = 12;
+    let ICON_SPRITE_PX = window.innerWidth < 600 ? 13 : 20; 
+    let ICON_GLYPH_PX = window.innerWidth < 600 ? 7 : 12;
+    window.addEventListener('resize', () => {
+      ICON_SPRITE_PX = window.innerWidth < 600 ? 13 : 20;
+      ICON_GLYPH_PX = window.innerWidth < 600 ? 7 : 12;
+    });
 
   const CATEGORY_STYLE = {
     "Violent Crime":              { iconClass: "bi-shield-exclamation" },

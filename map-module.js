@@ -951,6 +951,16 @@ export function createMapController({
     return `rgba(42,157,143,${a})`;
   }
 
+  function getChoroplethColor(intensity) {
+      // intensity is 0 to 1
+      // Stop colors: Green (#2a9d8f) -> Yellow (#e9c46a) -> Red (#dd1616)
+      if (intensity > 0.8) return '#dd1616'; // High (Red)
+      if (intensity > 0.6) return '#f4a261'; // Mid-High (Orange)
+      if (intensity > 0.4) return '#e9c46a'; // Mid (Yellow)
+      if (intensity > 0.2) return '#8ab17d'; // Mid-Low (Lime)
+      return '#2a9d8f';                      // Low (Green)
+  }
+
   function buildZipKey(state) {
     // state: {min,max,dow,hour,regionKey,legendKey,showAllTypes}
     return [
@@ -1042,16 +1052,30 @@ export function createMapController({
     for (const c of counts.values()) maxCount = Math.max(maxCount, c);
 
     for (const meta of zipFeatureMeta) {
-      const c = counts.get(meta.zip) || 0;
-      const fill = zipColor(c, maxCount);
+        const c = counts.get(meta.zip) || 0;
+        
+        // Normalize count to a 0.0 - 1.0 scale
+        const intensity = maxCount > 0 ? c / maxCount : 0;
+        const fill = getChoroplethColor(intensity);
 
-      if (meta.leafletLayer) {
-        meta.leafletLayer.setStyle({
-          fillColor: fill,
-          fillOpacity: 0.7,
-        });
-        meta.leafletLayer.setPopupContent(`ZIP ${meta.zip}<br/>Incidents: ${c.toLocaleString()}`);
-      }
+        if (meta.leafletLayer) {
+            meta.leafletLayer.setStyle({
+                fillColor: fill,
+                fillOpacity: 0.5,      // Semi-transparent as requested
+                color: "white",       // Border color
+                weight: 1.5,          // Border thickness
+                opacity: 0.8          // Border opacity
+            });
+            
+            // Update the popup with more detail
+            meta.leafletLayer.setPopupContent(`
+                <div style="text-align:center;">
+                    <strong style="font-size:14px;">ZIP ${meta.zip}</strong><br/>
+                    <span style="font-size:18px; font-weight:900;">${c.toLocaleString()}</span><br/>
+                    <span style="color:var(--muted); font-size:11px;">INCIDENTS</span>
+                </div>
+            `);
+        }
     }
 }
 
