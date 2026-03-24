@@ -258,7 +258,10 @@ export function createMapController({
   }
 
   // ------------------ Incident canvas layer ------------------
-  const ICON_SPRITE_PX = 20;
+  let ICON_SPRITE_PX = window.innerWidth < 600 ? 13 : 20;
+  window.addEventListener('resize', () => {
+    ICON_SPRITE_PX = window.innerWidth < 600 ? 13 : 20;
+  });
 
 
   // Canvas overlay used for dots mode (and pie-cluster rendering).
@@ -315,9 +318,12 @@ export function createMapController({
       if (!this._map || !this._canvas) return;
       const size = this._map.getSize();
       const topLeft = this._map.containerPointToLayerPoint([0, 0]);
+      const dpr = window.devicePixelRatio || 1;
 
-      this._canvas.width = size.x;
-      this._canvas.height = size.y;
+      this._canvas.width = size.x * dpr;
+      this._canvas.height = size.y * dpr;
+      this._canvas.style.width = size.x + "px";
+      this._canvas.style.height = size.y + "px";
 
       L.DomUtil.setPosition(this._canvas, topLeft);
       this._queueRedraw();
@@ -334,6 +340,8 @@ export function createMapController({
       const ctx = this._canvas.getContext("2d");
       if (!ctx) return;
 
+      const dpr = window.devicePixelRatio || 1;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.clearRect(0, 0, this._canvas.width, this._canvas.height);
 
       const zoom = this._map.getZoom();
@@ -814,7 +822,7 @@ export function createMapController({
 
     // Ensure the heat layer exists
     if (!heatLayer) {
-      heatLayer = L.heatLayer([], heatOptions);
+      heatLayer = L.heatLayer([], { radius: 18, blur: 14, maxZoom: 17 });
     }
 
     // Ensure it is attached before calling setLatLngs (prevents _map being null)

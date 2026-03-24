@@ -186,7 +186,7 @@ html, body {
   border-right:6px solid transparent;
   border-bottom:6px solid rgba(43,38,34,0.92);
 }
-.tip-wrap:hover .tip { display: block; }
+.tip-wrap:hover .tip, .tip-wrap.tip-active .tip { display: block; }
 
 /* Layout */
 #summary-card { margin-top: 14px; }
@@ -573,6 +573,30 @@ html, body {
   .btn {
     padding: 10px 12px;
     font-size: 10px;
+  }
+
+  /* Larger slider handles for touch */
+  #slider .noUi-handle {
+    width: 34px;
+    height: 34px;
+    top: -14px;
+    right: -17px;
+  }
+
+  /* Taller slider track for easier touch */
+  #slider .noUi-target {
+    height: 12px;
+  }
+
+  /* Prevent tooltips from overflowing viewport */
+  .tip {
+    left: auto;
+    right: 0;
+    max-width: min(320px, 80vw);
+  }
+  .tip::before {
+    left: auto;
+    right: 10px;
   }
 }
 

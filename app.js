@@ -397,8 +397,13 @@ window.addEventListener("DOMContentLoaded", () => {
     let ICON_SPRITE_PX = window.innerWidth < 600 ? 13 : 20; 
     let ICON_GLYPH_PX = window.innerWidth < 600 ? 7 : 12;
     window.addEventListener('resize', () => {
-      ICON_SPRITE_PX = window.innerWidth < 600 ? 13 : 20;
-      ICON_GLYPH_PX = window.innerWidth < 600 ? 7 : 12;
+      const newSprite = window.innerWidth < 600 ? 13 : 20;
+      const newGlyph = window.innerWidth < 600 ? 7 : 12;
+      if (newSprite !== ICON_SPRITE_PX || newGlyph !== ICON_GLYPH_PX) {
+        ICON_SPRITE_PX = newSprite;
+        ICON_GLYPH_PX = newGlyph;
+        iconSpriteCache.clear();
+      }
     });
 
   const CATEGORY_STYLE = {
@@ -555,6 +560,9 @@ window.addEventListener("DOMContentLoaded", () => {
     return out;
   }
 
+  const pointKeyFn = (p) => `${p.ts}|${p.type}|${p.lat.toFixed(6)}|${p.lon.toFixed(6)}`;
+  const pointKeySet = new Set();
+
   function mergePoints(newPts) {
 
 /**
@@ -567,13 +575,16 @@ window.addEventListener("DOMContentLoaded", () => {
  * - Or increase/decrease rounding precision depending on how noisy coordinates are.
  */
     if (!newPts?.length) return;
-    const key = (p) => `${p.ts}|${p.type}|${p.lat.toFixed(6)}|${p.lon.toFixed(6)}`;
 
-    const existing = new Set(pointsSorted.map(key));
+    // Build key set from existing points on first use
+    if (pointKeySet.size === 0 && pointsSorted.length > 0) {
+      for (const p of pointsSorted) pointKeySet.add(pointKeyFn(p));
+    }
+
     for (const p of newPts) {
-      const k = key(p);
-      if (!existing.has(k)) {
-        existing.add(k);
+      const k = pointKeyFn(p);
+      if (!pointKeySet.has(k)) {
+        pointKeySet.add(k);
         pointsSorted.push(p);
       }
     }
@@ -1129,6 +1140,17 @@ window.addEventListener("DOMContentLoaded", () => {
       // Now ensure everything in the legend is selected (checked) by default
       trendsCtl.resetLegendSelection();
       redrawAll();
+
+      // Tap-to-toggle tooltips on touch devices
+      if ("ontouchstart" in window) {
+        document.addEventListener("click", (e) => {
+          const wrap = e.target.closest(".tip-wrap");
+          document.querySelectorAll(".tip-wrap.tip-active").forEach((el) => {
+            if (el !== wrap) el.classList.remove("tip-active");
+          });
+          if (wrap) wrap.classList.toggle("tip-active");
+        });
+      }
 
       // Start loading full history immediately (while default view stays 30 days)
       loadAllHistoryInBackground();
