@@ -15,6 +15,7 @@ window.addEventListener("DOMContentLoaded", () => {
     "https://coageo.cabq.gov/cabqgeo/rest/services/Incidents/MapServer/0";
 
   const ZIP_QUERY_URL = "./abq-zips.json";
+  const HOUSE_DISTRICTS_URL = "./nm-house-districts.json";
     const INITIAL_DAYS = 30;        // initial fetch size (fast first render)
   const DEFAULT_VIEW_DAYS = 30;   // default slider window shown to user
   const MAX_YEARS_BACK = 2;       // total history cap
@@ -75,6 +76,7 @@ window.addEventListener("DOMContentLoaded", () => {
 
   const modeHeatBtn = requireEl("mode-heat");
   const modeZipBtn = requireEl("mode-zip");
+  const modeHouseBtn = requireEl("mode-house");
   const modeDotsBtn = requireEl("mode-dots");
 
   const heatOpacityPanel = requireEl("heat-opacity-panel");
@@ -138,7 +140,7 @@ window.addEventListener("DOMContentLoaded", () => {
   heatOpacityValEl.textContent = `${Math.round(heatOpacity * 100)}%`;
 
   // View
-  let viewMode = "dots"; // dots | heat | zips
+  let viewMode = "dots"; // dots | heat | zips | house
 
   // ------------------ Utilities ------------------
   function clamp(v, min, max) {
@@ -904,6 +906,7 @@ window.addEventListener("DOMContentLoaded", () => {
     modeDotsBtn,
     modeHeatBtn,
     modeZipBtn,
+    modeHouseBtn,
     heatOpacityPanel,
     heatOpacityEl,
     heatOpacityValEl,
@@ -911,6 +914,7 @@ window.addEventListener("DOMContentLoaded", () => {
     clearRegionBtn,
     setStatus,
     ZIP_QUERY_URL,
+    HOUSE_DISTRICTS_URL,
     arcgisFetch, // re-use robust fetch + status
     iconFontReadyRef: () => iconFontReady,
     ensureIconFontReady,
@@ -973,6 +977,7 @@ window.addEventListener("DOMContentLoaded", () => {
     for (const p of pointsSorted) {
       if (!passesTimeFilter(p)) continue;
       if (!mapCtl.passesRegionFilter(p)) continue;
+      if (!mapCtl.passesPolygonFilter(p)) continue;
       if (!trendsCtl.passesDOWFilter(p.ts)) continue;
       if (!trendsCtl.passesHourFilter(p.ts)) continue;
       out.push(p);
@@ -988,6 +993,7 @@ window.addEventListener("DOMContentLoaded", () => {
     for (const p of pointsSorted) {
       if (!passesTimeFilter(p)) continue;
       if (!mapCtl.passesRegionFilter(p)) continue;
+      if (!mapCtl.passesPolygonFilter(p)) continue;
       if (!ignoreDOW && !trendsCtl.passesDOWFilter(p.ts)) continue;
       if (!ignoreHour && !trendsCtl.passesHourFilter(p.ts)) continue;
       if (!trendsCtl.legendAllowsPoint(p)) continue;
@@ -1027,6 +1033,7 @@ window.addEventListener("DOMContentLoaded", () => {
       currentMinTime,
       currentMaxTime,
       hasRegion: mapCtl.hasRegion(),
+      polygonSelection: mapCtl.getPolygonSelectionLabel(),
       legendIsNarrowed: trendsCtl.legendIsNarrowed(),
     });
 
@@ -1050,8 +1057,8 @@ window.addEventListener("DOMContentLoaded", () => {
 // If you ever add cancellation (recommended), pass an AbortSignal down to mapCtl.draw*.
     (async () => {
       try {
-        if (viewMode === "zips") {
-          const zipKey = {
+        if (viewMode === "zips" || viewMode === "house") {
+          const stateKey = {
             min: currentMinTime,
             max: currentMaxTime,
             dow: trendsCtl.selectedDOW,
@@ -1060,7 +1067,11 @@ window.addEventListener("DOMContentLoaded", () => {
             legendKey: trendsCtl.showAllTypes ? trendsCtl.activeTypeKey : trendsCtl.activeCategoryKey,
             showAllTypes: trendsCtl.showAllTypes,
           };
-          await mapCtl.drawZipsWithKey(filtered, zipKey);
+          if (viewMode === "zips") {
+            await mapCtl.drawZipsWithKey(filtered, stateKey);
+          } else {
+            await mapCtl.drawHouseWithKey(filtered, stateKey);
+          }
         } else {
           await mapCtl.draw(viewMode, filtered, heatOpacity);
         }
@@ -1078,6 +1089,7 @@ window.addEventListener("DOMContentLoaded", () => {
   // allow modules to trigger redraw
   mapCtl.onRegionChanged = () => {
     mapCtl.invalidateZipCache();
+    mapCtl.invalidateHouseCache();
     redrawAll();
   };
   trendsCtl.onFiltersChanged = () => redrawAll();
@@ -1092,6 +1104,7 @@ window.addEventListener("DOMContentLoaded", () => {
   modeDotsBtn.addEventListener("click", () => { viewMode = "dots"; mapCtl.setModeUI(viewMode); redrawAll(); });
   modeHeatBtn.addEventListener("click", () => { viewMode = "heat"; mapCtl.setModeUI(viewMode); redrawAll(); });
   modeZipBtn.addEventListener("click", () => { viewMode = "zips"; mapCtl.setModeUI(viewMode); redrawAll(); });
+  modeHouseBtn.addEventListener("click", () => { viewMode = "house"; mapCtl.setModeUI(viewMode); redrawAll(); });
 
   // ------------------ Boot ------------------
   (async () => {

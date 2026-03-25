@@ -630,7 +630,7 @@ export function createTrendsController({
 
   // KPI computation is derived from *already filtered* points.
   // Keep this side-effect-free except for updating the DOM.
-  function updateKPIs({ filtered, currentMinTime, currentMaxTime, hasRegion, legendIsNarrowed }) {
+  function updateKPIs({ filtered, currentMinTime, currentMaxTime, hasRegion, polygonSelection, legendIsNarrowed }) {
     kpiTotalEl.textContent = filtered.length.toLocaleString();
     kpiRangeEl.textContent = formatRange(currentMinTime, currentMaxTime);
 
@@ -668,6 +668,7 @@ export function createTrendsController({
     const details = [];
 
     if (hasRegion) { filterCount++; details.push("region"); }
+    if (polygonSelection) { filterCount++; details.push(polygonSelection); }
     if (selectedDOW != null) { filterCount++; details.push("day-of-week"); }
     if (selectedHour != null) { filterCount++; details.push("hour"); }
     if (legendIsNarrowed) { filterCount++; details.push(showAllTypes ? "call types" : "categories"); }

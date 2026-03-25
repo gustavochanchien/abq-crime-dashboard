@@ -23,6 +23,7 @@ export function createMapController({
   modeDotsBtn,
   modeHeatBtn,
   modeZipBtn,
+  modeHouseBtn,
   heatOpacityPanel,
   heatOpacityEl,
   heatOpacityValEl,
@@ -30,6 +31,7 @@ export function createMapController({
   clearRegionBtn,
   setStatus,
   ZIP_QUERY_URL,
+  HOUSE_DISTRICTS_URL,
   arcgisFetch,
   iconFontReadyRef,
   ensureIconFontReady,
@@ -57,6 +59,16 @@ export function createMapController({
   let zipFeatureMeta = null; // [{zip, ringsList, bboxes, leafletLayer}]
   let lastZipKey = null;
   let lastZipCounts = null;
+
+  // House Districts caches
+  let houseLayer = null;
+  let houseGeoJSON = null;
+  let houseFeatureMeta = null; // [{district, ringsList, bboxes, leafletLayer}]
+  let lastHouseKey = null;
+  let lastHouseCounts = null;
+
+  // Polygon selection filter (click a ZIP or House district to filter)
+  let selectedPolygonMeta = null; // { label, ringsList, bboxes }
 
   // external hook
   let onRegionChanged = null;
@@ -586,6 +598,46 @@ export function createMapController({
     return !!regionLayer;
   }
 
+  // ------------------ Polygon selection filter ------------------
+
+  function passesPolygonFilter(p) {
+    if (!selectedPolygonMeta) return true;
+    const meta = selectedPolygonMeta;
+    for (let i = 0; i < meta.ringsList.length; i++) {
+      const bb = meta.bboxes[i];
+      if (
+        p.lat < bb.minLat || p.lat > bb.maxLat ||
+        p.lon < bb.minLon || p.lon > bb.maxLon
+      ) continue;
+      if (pointInPolygonRings(p.lat, p.lon, meta.ringsList[i])) return true;
+    }
+    return false;
+  }
+
+  function hasPolygonSelection() {
+    return !!selectedPolygonMeta;
+  }
+
+  function getPolygonSelectionLabel() {
+    return selectedPolygonMeta?.label ?? null;
+  }
+
+  function clearPolygonSelection() {
+    if (!selectedPolygonMeta) return;
+    selectedPolygonMeta = null;
+    if (typeof onRegionChanged === "function") onRegionChanged();
+  }
+
+  function selectPolygon(meta, label) {
+    if (selectedPolygonMeta && selectedPolygonMeta.label === label) {
+      // Toggle off
+      clearPolygonSelection();
+      return;
+    }
+    selectedPolygonMeta = { label, ringsList: meta.ringsList, bboxes: meta.bboxes };
+    if (typeof onRegionChanged === "function") onRegionChanged();
+  }
+
   // ------------------ Map init ------------------
 
   // Initialize Leaflet map + all mode layers + region draw tools.
@@ -648,8 +700,10 @@ export function createMapController({
       regionLayer = null;
       regionBounds = null;
       regionLatLngs = null;
+      selectedPolygonMeta = null;
       drawnItems?.clearLayers();
       invalidateZipCache();
+      invalidateHouseCache();
       if (typeof onRegionChanged === "function") onRegionChanged();
     });
 
@@ -699,6 +753,7 @@ export function createMapController({
   function clearMapLayers() {
     if (map && heatLayer && map.hasLayer(heatLayer)) map.removeLayer(heatLayer);
     if (map && zipLayer && map.hasLayer(zipLayer)) map.removeLayer(zipLayer);
+    if (map && houseLayer && map.hasLayer(houseLayer)) map.removeLayer(houseLayer);
     dotsCanvasLayer?.setGroups([]);
 
     lastDotGroups = [];
@@ -722,10 +777,12 @@ export function createMapController({
   function setModeUI(mode) {
     currentMode = mode;
     drawGen++;
+    selectedPolygonMeta = null; // clear polygon selection on mode switch
 
     modeDotsBtn?.classList.toggle("btn-on", mode === "dots");
     modeHeatBtn?.classList.toggle("btn-on", mode === "heat");
     modeZipBtn?.classList.toggle("btn-on", mode === "zips");
+    modeHouseBtn?.classList.toggle("btn-on", mode === "house");
 
     if (heatOpacityPanel) heatOpacityPanel.style.display = mode === "heat" ? "block" : "none";
     if (mode === "heat" && heatOpacityEl && heatOpacityValEl) {
@@ -948,6 +1005,11 @@ export function createMapController({
 
         const meta = zipFeatureMeta.find((m) => m.zip === zip);
         if (meta) meta.leafletLayer = layer;
+
+        layer.on("click", (e) => {
+          L.DomEvent.stopPropagation(e);
+          selectPolygon(meta, `ZIP ${zip}`);
+        });
       },
     });
   }
@@ -1020,6 +1082,150 @@ export function createMapController({
     lastZipCounts = null;
   }
 
+  // ------------------ House Districts mode ------------------
+
+  async function fetchHouseGeoJSONIfNeeded() {
+    if (houseGeoJSON && houseFeatureMeta) return;
+
+    const data = await arcgisFetch(HOUSE_DISTRICTS_URL, "Loading House district boundaries…");
+
+    houseGeoJSON = data;
+    houseFeatureMeta = [];
+
+    for (const f of houseGeoJSON.features || []) {
+      const district = f.properties?.DISTRICT ?? "—";
+      const geom = f.geometry;
+      const ringsList = [];
+
+      if (geom?.type === "Polygon") {
+        ringsList.push(geom.coordinates);
+      } else if (geom?.type === "MultiPolygon") {
+        for (const poly of geom.coordinates) ringsList.push(poly);
+      }
+
+      const bboxes = ringsList.map((rings) => bboxForRing(rings[0]));
+
+      houseFeatureMeta.push({
+        district,
+        ringsList,
+        bboxes,
+        leafletLayer: null,
+      });
+    }
+
+    houseLayer = L.geoJSON(houseGeoJSON, {
+      style: () => ({
+        weight: 1,
+        color: "rgba(43,38,34,0.45)",
+        fillColor: "rgba(70,130,180,0.12)",
+        fillOpacity: 0.55,
+      }),
+      onEachFeature: (feature, layer) => {
+        const district = feature.properties?.DISTRICT ?? "—";
+        layer.bindPopup(`House District ${district}`);
+
+        const meta = houseFeatureMeta.find((m) => m.district === district);
+        if (meta) meta.leafletLayer = layer;
+
+        layer.on("click", (e) => {
+          L.DomEvent.stopPropagation(e);
+          selectPolygon(meta, `District ${district}`);
+        });
+      },
+    });
+  }
+
+  function computeHouseCounts(points) {
+    const counts = new Map();
+    if (!houseFeatureMeta?.length) return counts;
+
+    for (const p of points) {
+      for (const meta of houseFeatureMeta) {
+        let matched = false;
+        for (let i = 0; i < meta.ringsList.length; i++) {
+          const bb = meta.bboxes[i];
+          if (
+            p.lat < bb.minLat || p.lat > bb.maxLat ||
+            p.lon < bb.minLon || p.lon > bb.maxLon
+          ) continue;
+
+          if (pointInPolygonRings(p.lat, p.lon, meta.ringsList[i])) {
+            counts.set(meta.district, (counts.get(meta.district) || 0) + 1);
+            matched = true;
+            break;
+          }
+        }
+        if (matched) break;
+      }
+    }
+    return counts;
+  }
+
+  function buildHouseKey(state) {
+    return [
+      state.min,
+      state.max,
+      state.dow ?? "x",
+      state.hour ?? "x",
+      state.regionKey ?? "R:0",
+      state.legendKey ?? "L:0",
+      state.showAllTypes ? "all" : "top",
+    ].join("::");
+  }
+
+  function invalidateHouseCache() {
+    lastHouseKey = null;
+    lastHouseCounts = null;
+  }
+
+  async function drawHouseWithKey(filteredPoints, houseStateKeyObj) {
+    const myGen = ++drawGen;
+    await fetchHouseGeoJSONIfNeeded();
+
+    if (myGen !== drawGen || currentMode !== "house") return;
+
+    if (map && heatLayer && map.hasLayer(heatLayer)) map.removeLayer(heatLayer);
+    if (map && zipLayer && map.hasLayer(zipLayer)) map.removeLayer(zipLayer);
+    dotsCanvasLayer?.setVisible(false);
+
+    if (houseLayer && map && !map.hasLayer(houseLayer)) houseLayer.addTo(map);
+
+    const key = buildHouseKey(houseStateKeyObj);
+    if (key !== lastHouseKey) {
+      lastHouseKey = key;
+      lastHouseCounts = computeHouseCounts(filteredPoints);
+    }
+
+    const counts = lastHouseCounts || new Map();
+    let maxCount = 0;
+    for (const c of counts.values()) maxCount = Math.max(maxCount, c);
+
+    for (const meta of houseFeatureMeta) {
+        const c = counts.get(meta.district) || 0;
+        const intensity = maxCount > 0 ? c / maxCount : 0;
+        const fill = getChoroplethColor(intensity);
+        const isSelected = selectedPolygonMeta?.label === `District ${meta.district}`;
+
+        if (meta.leafletLayer) {
+            meta.leafletLayer.setStyle({
+                fillColor: fill,
+                fillOpacity: isSelected ? 0.75 : 0.5,
+                color: isSelected ? "#ffd500" : "white",
+                weight: isSelected ? 3.5 : 1.5,
+                opacity: isSelected ? 1 : 0.8,
+            });
+            if (isSelected) meta.leafletLayer.bringToFront();
+
+            meta.leafletLayer.setPopupContent(`
+                <div style="text-align:center;">
+                    <strong style="font-size:14px;">House District ${meta.district}</strong><br/>
+                    <span style="font-size:18px; font-weight:900;">${c.toLocaleString()}</span><br/>
+                    <span style="color:var(--muted); font-size:11px;">INCIDENTS${isSelected ? " (FILTERED)" : ""}</span>
+                </div>
+            `);
+        }
+    }
+  }
 
   // ------------------ Public draw() ------------------
   async function draw(mode, filteredPoints, heatOpacity) {
@@ -1045,6 +1251,7 @@ export function createMapController({
 
 
     if (map && heatLayer && map.hasLayer(heatLayer)) map.removeLayer(heatLayer);
+    if (map && houseLayer && map.hasLayer(houseLayer)) map.removeLayer(houseLayer);
     dotsCanvasLayer?.setVisible(false);
 
     if (zipLayer && map && !map.hasLayer(zipLayer)) zipLayer.addTo(map);
@@ -1061,26 +1268,25 @@ export function createMapController({
 
     for (const meta of zipFeatureMeta) {
         const c = counts.get(meta.zip) || 0;
-        
-        // Normalize count to a 0.0 - 1.0 scale
         const intensity = maxCount > 0 ? c / maxCount : 0;
         const fill = getChoroplethColor(intensity);
+        const isSelected = selectedPolygonMeta?.label === `ZIP ${meta.zip}`;
 
         if (meta.leafletLayer) {
             meta.leafletLayer.setStyle({
                 fillColor: fill,
-                fillOpacity: 0.5,      // Semi-transparent as requested
-                color: "white",       // Border color
-                weight: 1.5,          // Border thickness
-                opacity: 0.8          // Border opacity
+                fillOpacity: isSelected ? 0.75 : 0.5,
+                color: isSelected ? "#ffd500" : "white",
+                weight: isSelected ? 3.5 : 1.5,
+                opacity: isSelected ? 1 : 0.8,
             });
-            
-            // Update the popup with more detail
+            if (isSelected) meta.leafletLayer.bringToFront();
+
             meta.leafletLayer.setPopupContent(`
                 <div style="text-align:center;">
                     <strong style="font-size:14px;">ZIP ${meta.zip}</strong><br/>
                     <span style="font-size:18px; font-weight:900;">${c.toLocaleString()}</span><br/>
-                    <span style="color:var(--muted); font-size:11px;">INCIDENTS</span>
+                    <span style="color:var(--muted); font-size:11px;">INCIDENTS${isSelected ? " (FILTERED)" : ""}</span>
                 </div>
             `);
         }
@@ -1093,10 +1299,16 @@ export function createMapController({
     setModeUI,
     applyHeatOpacity,
     passesRegionFilter,
+    passesPolygonFilter,
     hasRegion,
+    hasPolygonSelection,
+    getPolygonSelectionLabel,
+    clearPolygonSelection,
     invalidateZipCache,
+    invalidateHouseCache,
     draw,
     drawZipsWithKey,
+    drawHouseWithKey,
     get regionKey() {
       if (!regionBounds) return "R:0";
       return `R:${regionBounds.getSouthWest().lat.toFixed(3)},${regionBounds.getSouthWest().lng.toFixed(3)}:${regionBounds.getNorthEast().lat.toFixed(3)},${regionBounds.getNorthEast().lng.toFixed(3)}`;
